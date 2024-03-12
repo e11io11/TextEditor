@@ -1,7 +1,7 @@
 use std::usize;
 
 pub(crate) struct TextContent {
-    content: Vec<String>,
+    content: Vec<Vec<char>>,
     cursor: (usize, usize),
 }
 
@@ -10,7 +10,7 @@ impl TextContent {
         TextContent {
             content: {
                 let mut c = Vec::new();
-                c.push(String::new());
+                c.push(Vec::new());
                 c
             },
             cursor: (0, 0),
@@ -18,11 +18,11 @@ impl TextContent {
     }
 
     pub fn get_text(&self) -> Vec<String> {
-        self.content.clone()
+        self.content.iter().map(|l| l.iter().collect()).collect()
     }
 
     pub fn get_string(&self) -> String {
-        self.content.join("\n")
+        self.get_text().join("\n")
     }
 
     pub fn get_cursor(&self) -> (usize, usize) {
@@ -39,6 +39,7 @@ impl TextContent {
     }
 
     pub fn append(&mut self, text: String) {
+        let text = text.chars().collect();
         if self.content.len() == 0 {
             self.content.push(text);
             return;
@@ -49,7 +50,7 @@ impl TextContent {
             c = self.cursor.1;
         }
         let (left, right) = self.content[l].split_at(c);
-        let new = format!("{}{}{}", left, text, right);
+        let new = [left, &text, right].concat();
         self.content[l] = new;
         self.move_cursor_right(text.len());
     }
@@ -124,7 +125,8 @@ impl TextContent {
             self.move_cursor_up(1);
             self.snap_cursor_end_of_line();
             let (l, _) = self.cursor;
-            self.content[l] = format!("{}{}", self.content[l], self.content[l + 1]);
+            let removed_line = self.content[l + 1].clone();
+            self.content[l].extend(removed_line);
             self.content.remove(l + 1);
         } else {
             self.content[l].remove(c - 1);
@@ -137,7 +139,7 @@ impl TextContent {
         let right = if c < self.content[l].len() {
             self.content[l].split_off(c)
         } else {
-            String::new()
+            Vec::new()
         };
         self.content.insert(l + 1, right);
         self.move_cursor_down(1);
