@@ -35,12 +35,12 @@ impl TextContent {
     }
 
     pub fn _empty(&self) -> bool {
-        self.content.len() == 0 && self.content[0].len() == 0
+        self.content.is_empty() || self.content[0].is_empty()
     }
 
     pub fn append(&mut self, text: String) {
         let text = text.chars().collect();
-        if self.content.len() == 0 {
+        if self.content.is_empty() {
             self.content.push(text);
             return;
         }
@@ -100,7 +100,11 @@ impl TextContent {
     }
 
     pub fn move_cursor_left(&mut self, n: usize) {
-        let (l, c) = self.cursor;
+        let (l, mut c) = self.cursor;
+        if c > self.content[l].len() {
+            self.snap_cursor_end_of_line();
+            c = self.cursor.1;
+        }
         let no_more_characters = c == 0 && l == 0;
         let beginning_of_line = c < n;
         if no_more_characters {
@@ -112,9 +116,21 @@ impl TextContent {
         };
     }
 
+    pub fn set_cursor(&mut self, cursor: (usize, usize)) {
+        let (mut l, mut c) = cursor;
+        if l >= self.content.len() {
+            l = self.content.len() - 1;
+            c = self.content[l].len();
+        }
+        if c > self.content[l].len() {
+            c = self.content[l].len();
+        }
+        self.cursor = (l, c);
+    }
+
     pub fn remove(&mut self) {
         let (l, mut c) = self.cursor;
-        if c >= self.content[l].len() {
+        if c > self.content[l].len() {
             self.snap_cursor_end_of_line();
             c = self.cursor.1;
         }
@@ -130,17 +146,23 @@ impl TextContent {
             self.content.remove(l + 1);
         } else {
             self.content[l].remove(c - 1);
-            self.move_cursor_left(1);
+            self.cursor.1 -= 1;
         }
     }
 
     pub fn new_line(&mut self) {
+        let (l, _) = self.cursor;
+        self.content.insert(l + 1, Vec::new());
+        self.cursor = (l + 1, 0);
+    }
+
+    pub fn break_line(&mut self) {
         let (l, c) = self.cursor;
-        let right = if c < self.content[l].len() {
-            self.content[l].split_off(c)
-        } else {
-            Vec::new()
-        };
+        if c >= self.content[l].len() {
+            self.new_line();
+            return;
+        }
+        let right = self.content[l].split_off(c);
         self.content.insert(l + 1, right);
         self.move_cursor_down(1);
         self.snap_cursor_start_of_line();
