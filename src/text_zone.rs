@@ -150,6 +150,26 @@ impl TextContent {
         }
     }
 
+    pub fn move_line_up(&mut self) {
+        let (l, _) = self.cursor;
+        if l == 0 {
+            return;
+        }
+        let line = self.content.remove(l);
+        self.content.insert(l - 1, line);
+        self.cursor.0 -= 1;
+    }
+
+    pub fn move_line_down(&mut self) {
+        let (l, _) = self.cursor;
+        if l >= self.content.len() - 1 {
+            return;
+        }
+        let line = self.content.remove(l);
+        self.content.insert(l + 1, line);
+        self.cursor.0 += 1;
+    }
+
     pub fn new_line(&mut self) {
         let (l, _) = self.cursor;
         self.content.insert(l + 1, Vec::new());

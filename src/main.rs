@@ -19,6 +19,12 @@ fn text_editing(keycode: Keycode, keymod: Mod, text_content: &mut TextContent) -
             text_content.new_line()
         }
         Keycode::Return => text_content.break_line(),
+        Keycode::Up if keymod.intersects(Mod::LALTMOD | Mod::RALTMOD) => {
+            text_content.move_line_up()
+        }
+        Keycode::Down if keymod.intersects(Mod::LALTMOD | Mod::RALTMOD) => {
+            text_content.move_line_down()
+        }
         Keycode::Up => text_content.move_cursor_up(1),
         Keycode::Down => text_content.move_cursor_down(1),
         Keycode::Left => text_content.move_cursor_left(1),
