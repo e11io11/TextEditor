@@ -2,8 +2,8 @@ use sdl2::{rect::Rect, render::Canvas, ttf::Font, video::Window};
 
 use crate::{timer, vue::percent_length};
 
-use super::{char_size, percent_position, str_rect, TEXT_COLOR};
-const X_MARGIN: i32 = 10;
+use super::{char_size, percent_position, str_rect, BACKGROUND_COLOR, GREY_TEXT_COLOR, TEXT_COLOR};
+const X_MARGIN: i32 = 40;
 const Y_MARGIN: i32 = 10;
 
 pub(crate) struct TextArea {
@@ -42,7 +42,7 @@ impl TextArea {
         self.area = Rect::new(self.area.x(), self.area.y(), w, h);
     }
 
-    fn get_draw_area(&self) -> Rect {
+    fn get_content_area(&self) -> Rect {
         let (w, h) = self.area.size();
         let (x, y) = (self.area.x(), self.area.y());
         let (x_scroll, y_scroll) = self.scroll_offset;
@@ -50,6 +50,18 @@ impl TextArea {
             x + X_MARGIN + x_scroll,
             y + Y_MARGIN + y_scroll,
             (w as i32 - X_MARGIN - x_scroll) as u32,
+            (h as i32 - Y_MARGIN - y_scroll) as u32,
+        )
+    }
+
+    fn get_line_number_area(&self) -> Rect {
+        let (_, h) = self.area.size();
+        let (x, y) = (self.area.x(), self.area.y());
+        let (_, y_scroll) = self.scroll_offset;
+        Rect::new(
+            x,
+            y + Y_MARGIN + y_scroll,
+            X_MARGIN as u32,
             (h as i32 - Y_MARGIN - y_scroll) as u32,
         )
     }
@@ -94,7 +106,7 @@ impl TextArea {
     fn cursor_bounds(&self) -> Rect {
         let bounds = {
             let rec = self
-                .get_draw_area()
+                .get_content_area()
                 .intersection(self.area)
                 .expect("Should always intersect");
             let new_w = percent_length(rec.w as u32, 80);
@@ -109,7 +121,7 @@ impl TextArea {
     pub fn _debug_draw_rect(&self, canvas: &mut Canvas<Window>) {
         canvas.set_draw_color(TEXT_COLOR);
         canvas.draw_rect(self.area).unwrap();
-        canvas.draw_rect(self.get_draw_area()).unwrap();
+        canvas.draw_rect(self.get_content_area()).unwrap();
     }
 
     fn draw_content(&mut self, content: &Vec<String>, canvas: &mut Canvas<Window>, font: &Font) {
@@ -121,9 +133,35 @@ impl TextArea {
             let surface = font.render(text).blended(TEXT_COLOR).unwrap();
             let texture = surface.as_texture(&creator).unwrap();
             let rect = {
-                let area = self.get_draw_area();
+                let area = self.get_content_area();
                 let mut rect = text_rect(font, text, line);
                 rect.offset(area.x(), area.y());
+                rect
+            };
+            canvas.copy(&texture, None, rect).unwrap()
+        }
+    }
+
+    fn draw_line_numbers(
+        &mut self,
+        line_n: usize,
+        canvas: &mut Canvas<Window>,
+        font: &Font,
+        content_font: &Font,
+    ) {
+        let creator = canvas.texture_creator();
+        let area = self.get_line_number_area();
+        canvas.set_draw_color(BACKGROUND_COLOR);
+        canvas.fill_rect(area).unwrap();
+        for n in 0..line_n {
+            let text = (n + 1).to_string();
+            let surface = font.render(&text).blended(GREY_TEXT_COLOR).unwrap();
+            let texture = surface.as_texture(&creator).unwrap();
+            let rect = {
+                let mut rect = text_rect(font, &text, n);
+                let container = text_rect(content_font, &text, n);
+                rect.center_on(container.center());
+                rect.offset(area.right() - rect.w - 10, area.y());
                 rect
             };
             canvas.copy(&texture, None, rect).unwrap()
@@ -133,7 +171,7 @@ impl TextArea {
     fn cursor_position(&self, cursor: (usize, usize), font: &Font) -> (i32, i32) {
         let (l, c) = cursor;
         let (w, h) = char_size(font);
-        let draw_area = self.get_draw_area();
+        let draw_area = self.get_content_area();
         let (x, y) = {
             let x = (w * c as u32) as i32;
             let y = (h * l as u32) as i32;
@@ -185,20 +223,22 @@ impl TextArea {
         content_size: (usize, usize),
         cursor: (usize, usize),
         canvas: &mut Canvas<Window>,
-        font: &Font,
+        content_font: &Font,
+        line_number_font: &Font,
     ) {
-        self.update_content_size(content_size, font);
+        self.update_content_size(content_size, content_font);
         if self.cursor_update {
-            self.on_cursor_update(cursor, font);
+            self.on_cursor_update(cursor, content_font);
         }
         canvas.set_clip_rect(self.area);
-        self.draw_content(&content, canvas, font);
-        self.draw_cursor(cursor, canvas, font);
+        self.draw_content(&content, canvas, content_font);
+        self.draw_line_numbers(content.len(), canvas, line_number_font, content_font);
+        self.draw_cursor(cursor, canvas, content_font);
     }
 
     pub fn index_of_position(&self, x: i32, y: i32, font: &Font) -> (usize, usize) {
         let (w, h) = char_size(font);
-        let area = self.get_draw_area();
+        let area = self.get_content_area();
         let l = ((y - area.y) / h as i32) as usize;
         let c = ((x - area.x) / w as i32) as usize;
         (l, c)

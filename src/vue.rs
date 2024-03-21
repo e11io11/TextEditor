@@ -17,6 +17,7 @@ const BAR_COLOR: Color = Color::RGB(24, 24, 24);
 const OUTLINE_COLOR: Color = Color::RGB(43, 43, 43);
 const BACKGROUND_COLOR: Color = Color::RGB(31, 31, 31);
 const TEXT_COLOR: Color = Color::RGB(204, 204, 204);
+const GREY_TEXT_COLOR: Color = Color::RGB(110, 118, 129);
 
 const TEXT_FONT: &str = "__TEXT_FONT__";
 const UI_FONT: &str = "__UI_FONT__";
@@ -121,6 +122,7 @@ impl<'a> Vue<'a> {
             cursor,
             &mut self.canvas,
             self.fonts.get(TEXT_FONT).unwrap(),
+            self.fonts.get(UI_FONT).unwrap(),
         );
         self.info_bar
             .refresh(cursor, &mut self.canvas, self.fonts.get(UI_FONT).unwrap());
