@@ -38,6 +38,23 @@ impl TextContent {
         self.content.is_empty() || self.content[0].is_empty()
     }
 
+    pub fn line_count(&self) -> usize {
+        self.content.len()
+    }
+
+    pub fn longest_line_length(&self) -> usize {
+        self.content.iter().map(|l| l.len()).max().unwrap()
+    }
+
+    pub fn _current_line_length(&self) -> usize {
+        let (l, _) = self.cursor;
+        self.content[l].len()
+    }
+
+    pub fn size(&self) -> (usize, usize) {
+        (self.line_count(), self.longest_line_length())
+    }
+
     pub fn append(&mut self, text: String) {
         let text = text.chars().collect();
         if self.content.is_empty() {

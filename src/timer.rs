@@ -22,6 +22,10 @@ impl Timer {
         self.instant.elapsed().as_millis() % n * 2 >= n
     }
 
+    pub fn switch_n_times_per_second(&self, n: u128) -> bool {
+        self.instant.elapsed().as_millis() % (1000 / n) * 2 >= 1000 / n
+    }
+
     pub fn _switch_every_n_for_m_millis(&self, n: u128, m: u128) -> bool {
         self.instant.elapsed().as_millis() % n >= m
     }
