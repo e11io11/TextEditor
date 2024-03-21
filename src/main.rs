@@ -29,6 +29,7 @@ fn text_editing(keycode: Keycode, keymod: Mod, text_content: &mut TextContent) -
         Keycode::Left => text_content.move_cursor_left(1),
         Keycode::Right => text_content.move_cursor_right(1),
         Keycode::Backspace => text_content.remove(),
+        Keycode::Tab => text_content.append("    ".to_string()),
         _ => return false,
     }
     return true;
