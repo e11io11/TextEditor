@@ -1,8 +1,16 @@
-use sdl2::{rect::Rect, render::Canvas, ttf::Font, video::Window};
+use sdl2::{
+    rect::Rect,
+    render::Canvas,
+    ttf::{Font, FontError},
+    video::Window,
+};
 
 use crate::{timer, vue::percent_length};
 
-use super::{char_size, percent_position, str_rect, BACKGROUND_COLOR, GREY_TEXT_COLOR, TEXT_COLOR};
+use super::{
+    char_size, percent_position, str_rect, VueError, BACKGROUND_COLOR, GREY_TEXT_COLOR, TEXT_COLOR,
+};
+
 const X_MARGIN: i32 = 40;
 const Y_MARGIN: i32 = 10;
 
@@ -124,22 +132,28 @@ impl TextArea {
         canvas.draw_rect(self.get_content_area()).unwrap();
     }
 
-    fn draw_content(&mut self, content: &Vec<String>, canvas: &mut Canvas<Window>, font: &Font) {
+    fn draw_content(
+        &mut self,
+        content: &Vec<String>,
+        canvas: &mut Canvas<Window>,
+        font: &Font,
+    ) -> Result<(), VueError> {
         let creator = canvas.texture_creator();
         for (line, text) in content.iter().enumerate() {
             if text.is_empty() {
                 continue;
             }
-            let surface = font.render(text).blended(TEXT_COLOR).unwrap();
-            let texture = surface.as_texture(&creator).unwrap();
+            let surface = font.render(text).blended(TEXT_COLOR)?;
+            let texture = surface.as_texture(&creator)?;
             let rect = {
                 let area = self.get_content_area();
-                let mut rect = text_rect(font, text, line);
+                let mut rect = text_rect(font, text, line)?;
                 rect.offset(area.x(), area.y());
                 rect
             };
-            canvas.copy(&texture, None, rect).unwrap()
+            canvas.copy(&texture, None, rect)?;
         }
+        Ok(())
     }
 
     fn draw_line_numbers(
@@ -148,24 +162,25 @@ impl TextArea {
         canvas: &mut Canvas<Window>,
         font: &Font,
         content_font: &Font,
-    ) {
+    ) -> Result<(), VueError> {
         let creator = canvas.texture_creator();
         let area = self.get_line_number_area();
         canvas.set_draw_color(BACKGROUND_COLOR);
-        canvas.fill_rect(area).unwrap();
+        canvas.fill_rect(area)?;
         for n in 0..line_n {
             let text = (n + 1).to_string();
-            let surface = font.render(&text).blended(GREY_TEXT_COLOR).unwrap();
-            let texture = surface.as_texture(&creator).unwrap();
+            let surface = font.render(&text).blended(GREY_TEXT_COLOR)?;
+            let texture = surface.as_texture(&creator)?;
             let rect = {
-                let mut rect = text_rect(font, &text, n);
-                let container = text_rect(content_font, &text, n);
+                let mut rect = text_rect(font, &text, n)?;
+                let container = text_rect(content_font, &text, n)?;
                 rect.center_on(container.center());
                 rect.offset(area.right() - rect.w - 10, area.y());
                 rect
             };
-            canvas.copy(&texture, None, rect).unwrap()
+            canvas.copy(&texture, None, rect)?;
         }
+        Ok(())
     }
 
     fn cursor_position(&self, cursor: (usize, usize), font: &Font) -> (i32, i32) {
@@ -180,10 +195,15 @@ impl TextArea {
         (x, y)
     }
 
-    fn draw_cursor(&mut self, cursor: (usize, usize), canvas: &mut Canvas<Window>, font: &Font) {
+    fn draw_cursor(
+        &mut self,
+        cursor: (usize, usize),
+        canvas: &mut Canvas<Window>,
+        font: &Font,
+    ) -> Result<(), String> {
         let blink = self.cursor_timer.switch_every_n_millis(2000);
         if blink {
-            return;
+            return Ok(());
         }
         let (x, y) = self.cursor_position(cursor, font);
         let rect = {
@@ -192,7 +212,8 @@ impl TextArea {
             Rect::new(x - (w / 2) as i32, y, w, h)
         };
         canvas.set_draw_color(TEXT_COLOR);
-        canvas.draw_rect(rect).unwrap();
+        canvas.draw_rect(rect)?;
+        Ok(())
     }
 
     fn reset_cursor_timer(&mut self) {
@@ -225,15 +246,16 @@ impl TextArea {
         canvas: &mut Canvas<Window>,
         content_font: &Font,
         line_number_font: &Font,
-    ) {
+    ) -> Result<(), VueError> {
         self.update_content_size(content_size, content_font);
         if self.cursor_update {
             self.on_cursor_update(cursor, content_font);
         }
         canvas.set_clip_rect(self.area);
-        self.draw_content(&content, canvas, content_font);
-        self.draw_line_numbers(content.len(), canvas, line_number_font, content_font);
-        self.draw_cursor(cursor, canvas, content_font);
+        self.draw_content(&content, canvas, content_font)?;
+        self.draw_line_numbers(content.len(), canvas, line_number_font, content_font)?;
+        self.draw_cursor(cursor, canvas, content_font)?;
+        Ok(())
     }
 
     pub fn index_of_position(&self, x: i32, y: i32, font: &Font) -> (usize, usize) {
@@ -245,8 +267,8 @@ impl TextArea {
     }
 }
 
-fn text_rect(font: &Font, text: &str, line: usize) -> Rect {
-    let (_, height) = font.size_of(text).unwrap();
-    let rect = str_rect(font, text);
-    rect.bottom_shifted(height as i32 * line as i32)
+fn text_rect(font: &Font, text: &str, line: usize) -> Result<Rect, FontError> {
+    let (_, height) = font.size_of(text)?;
+    let rect = str_rect(font, text)?;
+    Ok(rect.bottom_shifted(height as i32 * line as i32))
 }

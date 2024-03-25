@@ -1,10 +1,10 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, ffi::NulError, path::Path};
 
 use sdl2::{
-    pixels::Color,
+    pixels::{Color, PixelFormatEnum},
     rect::Rect,
-    render::Canvas,
-    ttf::{Font, Sdl2TtfContext},
+    render::{Canvas, TextureValueError},
+    ttf::{Font, FontError, Sdl2TtfContext},
     video::Window,
 };
 
@@ -21,6 +21,43 @@ const GREY_TEXT_COLOR: Color = Color::RGB(110, 118, 129);
 
 const TEXT_FONT: &str = "__TEXT_FONT__";
 const UI_FONT: &str = "__UI_FONT__";
+
+#[derive(Debug)]
+pub(crate) enum VueError {
+    InvalidLatin1Text(NulError),
+    WidthOverflows(u32),
+    HeightOverflows(u32),
+    WidthMustBeMultipleOfTwoForFormat(u32, PixelFormatEnum),
+    SdlError(String),
+}
+
+impl From<FontError> for VueError {
+    fn from(e: FontError) -> Self {
+        match e {
+            FontError::InvalidLatin1Text(e) => VueError::InvalidLatin1Text(e),
+            FontError::SdlError(s) => VueError::SdlError(s),
+        }
+    }
+}
+
+impl From<TextureValueError> for VueError {
+    fn from(e: TextureValueError) -> Self {
+        match e {
+            TextureValueError::WidthOverflows(w) => VueError::WidthOverflows(w),
+            TextureValueError::HeightOverflows(h) => VueError::HeightOverflows(h),
+            TextureValueError::WidthMustBeMultipleOfTwoForFormat(w, f) => {
+                VueError::WidthMustBeMultipleOfTwoForFormat(w, f)
+            }
+            TextureValueError::SdlError(s) => VueError::SdlError(s),
+        }
+    }
+}
+
+impl From<String> for VueError {
+    fn from(s: String) -> Self {
+        VueError::SdlError(s)
+    }
+}
 
 pub(crate) struct Fonts<'a> {
     map: HashMap<String, Font<'a, 'a>>,
@@ -116,16 +153,21 @@ impl<'a> Vue<'a> {
     ) {
         self.canvas.set_draw_color(BACKGROUND_COLOR);
         self.canvas.clear();
-        self.text_area.refresh(
-            content,
-            content_size,
-            cursor,
-            &mut self.canvas,
-            self.fonts.get(TEXT_FONT).unwrap(),
-            self.fonts.get(UI_FONT).unwrap(),
-        );
+        self.text_area
+            .refresh(
+                content,
+                content_size,
+                cursor,
+                &mut self.canvas,
+                self.fonts.get(TEXT_FONT).unwrap(),
+                self.fonts.get(UI_FONT).unwrap(),
+            )
+            .unwrap_or_else(|e| {
+                eprintln!("Error: {:?}", e);
+            });
         self.info_bar
-            .refresh(cursor, &mut self.canvas, self.fonts.get(UI_FONT).unwrap());
+            .refresh(cursor, &mut self.canvas, self.fonts.get(UI_FONT).unwrap())
+            .unwrap_or_else(|e| eprintln!("Error: {:?}", e));
         self.canvas.present();
     }
 }
@@ -157,9 +199,9 @@ pub fn char_size(font: &Font) -> (u32, u32) {
     font.size_of_char('a').unwrap()
 }
 
-pub fn str_rect(font: &Font, text: &str) -> Rect {
-    let (width, height) = font.size_of(text).unwrap();
-    Rect::new(0, 0, width, height)
+pub fn str_rect(font: &Font, text: &str) -> Result<Rect, FontError> {
+    let (width, height) = font.size_of(text)?;
+    Ok(Rect::new(0, 0, width, height))
 }
 
 pub fn _center(x1: u32, x2: u32) -> u32 {
