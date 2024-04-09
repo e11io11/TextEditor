@@ -2,6 +2,7 @@ extern crate sdl2;
 
 use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::{Keycode, Mod};
+use sdl2::mouse::MouseButton;
 use sdl2::ttf::{self};
 use text_zone::TextContent;
 use timer::Timer;
@@ -68,6 +69,7 @@ pub fn main() {
     video_subsystem.text_input().start();
     let timer = Timer::new();
     let mut refresh_switch = true;
+    let mut left_click_origin = None;
     'running: loop {
         let events = event_pump.poll_iter();
         for event in events {
@@ -79,17 +81,33 @@ pub fn main() {
                     ..
                 } => {
                     if text_editing(keycode, keymod, &mut text_content) {
-                        vue.text_area.send_cursor_update()
+                        vue.send_cursor_update()
                     } else if command(keycode, keymod, &mut text_content) {
                     }
                 }
                 Event::TextInput { text, .. } => {
                     text_content.append(text);
-                    vue.text_area.send_cursor_update();
+                    vue.send_cursor_update();
                 }
                 Event::MouseButtonDown { x, y, .. } => {
-                    text_content.set_cursor(vue.cursor_position(x, y));
-                    vue.text_area.send_cursor_update();
+                    left_click_origin = Some((x, y));
+                    if vue.click_text_area_scroll_bar(x, y) {
+                    } else if let Some(position) = vue.cursor_index(x, y) {
+                        text_content.set_cursor(position);
+                        vue.send_cursor_update();
+                    }
+                }
+                Event::MouseMotion {
+                    x, y, xrel, yrel, ..
+                } if left_click_origin.is_some() => {
+                    let origin = left_click_origin.unwrap();
+                    vue.hold_text_area_scroll_bar(origin, x, y, xrel, yrel);
+                }
+                Event::MouseButtonUp {
+                    mouse_btn: MouseButton::Left,
+                    ..
+                } => {
+                    left_click_origin = None;
                 }
                 Event::Window {
                     win_event: WindowEvent::Resized(..),
@@ -100,7 +118,7 @@ pub fn main() {
                     precise_y,
                     ..
                 } => {
-                    vue.scroll_text_area(precise_x as i32, precise_y as i32);
+                    vue.scroll_text_area(precise_x, precise_y);
                 }
                 _ => {}
             }

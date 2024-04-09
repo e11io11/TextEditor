@@ -8,10 +8,16 @@ use sdl2::{
     video::Window,
 };
 
-use self::{info_bar::InfoBar, text_area::TextArea};
+use self::{info_bar::InfoBar, text_area_container::TextAreaContainer};
 
 mod info_bar;
+mod line_numbers;
+mod scroll_bar;
 mod text_area;
+mod text_area_container;
+
+type RepositionFun = fn((u32, u32), (i32, i32)) -> (i32, i32);
+type ResizeFun = fn((u32, u32)) -> (u32, u32);
 
 const BAR_COLOR: Color = Color::RGB(24, 24, 24);
 const OUTLINE_COLOR: Color = Color::RGB(43, 43, 43);
@@ -59,6 +65,26 @@ impl From<String> for VueError {
     }
 }
 
+trait VueComponent {
+    fn on_resize(&mut self, container_size: (u32, u32), container_position: (i32, i32)) {
+        self.set_size(self.get_resize_fun()(container_size));
+        self.set_position(self.get_reposition_fun()(
+            container_size,
+            container_position,
+        ));
+        self.affect_children()
+    }
+
+    fn affect_children(&mut self) {
+        //does nothing by default
+    }
+
+    fn set_size(&mut self, size: (u32, u32));
+    fn set_position(&mut self, position: (i32, i32));
+    fn get_resize_fun(&self) -> ResizeFun;
+    fn get_reposition_fun(&self) -> RepositionFun;
+}
+
 pub(crate) struct Fonts<'a> {
     map: HashMap<String, Font<'a, 'a>>,
 }
@@ -90,7 +116,7 @@ impl<'a> Fonts<'a> {
 pub(crate) struct Vue<'a> {
     canvas: Canvas<Window>,
     fonts: Fonts<'a>,
-    pub text_area: TextArea,
+    text_area_container: TextAreaContainer,
     info_bar: InfoBar,
 }
 
@@ -109,12 +135,12 @@ impl<'a> Vue<'a> {
             );
             f
         };
-        let text_area = TextArea::new(|(w, h)| (w, h - 30), |(_, _)| (0, 0));
-        let info_bar = info_bar::InfoBar::new(|(w, _)| (w, 30), |(_, h)| (0, (h - 30) as i32));
+        let text_area_container = TextAreaContainer::new(|(w, h)| (w, h - 30), |_, pos| pos);
+        let info_bar = InfoBar::new(|(w, _)| (w, 30), |(_, h), _| (0, (h - 30) as i32));
         let mut v = Vue {
             canvas,
             fonts,
-            text_area,
+            text_area_container,
             info_bar,
         };
         v.resize();
@@ -125,24 +151,36 @@ impl<'a> Vue<'a> {
         self.canvas.set_draw_color(BACKGROUND_COLOR);
         self.canvas.clear();
         let (w, h) = self.canvas.window().size();
-        self.text_area.set_size((self.text_area.resize_fun)((w, h)));
-        self.text_area
-            .set_position((self.text_area.reposition_fun)((w, h)));
-        self.info_bar.set_size((self.info_bar.resize_fun)((w, h)));
-        self.info_bar
-            .set_position((self.info_bar.reposition_fun)((w, h)));
+        self.text_area_container.on_resize((w, h), (0, 0));
+        self.info_bar.on_resize((w, h), (0, 0));
     }
 
-    pub fn cursor_position(&self, x: i32, y: i32) -> (usize, usize) {
-        let (l, c) = self
-            .text_area
-            .index_of_position(x, y, &self.fonts.get(TEXT_FONT).unwrap());
-        (l, c)
+    pub fn cursor_index(&self, x: i32, y: i32) -> Option<(usize, usize)> {
+        self.text_area_container.cursor_index(x, y)
     }
 
-    pub fn scroll_text_area(&mut self, x: i32, y: i32) {
-        self.text_area.scroll_y(20 * y);
-        self.text_area.scroll_x(20 * -x);
+    pub fn send_cursor_update(&mut self) {
+        self.text_area_container.send_cursor_update()
+    }
+
+    pub fn scroll_text_area(&mut self, x: f32, y: f32) {
+        self.text_area_container.scroll(x, y)
+    }
+
+    pub fn click_text_area_scroll_bar(&mut self, x: i32, y: i32) -> bool {
+        self.text_area_container.click_scroll_bar(x, y)
+    }
+
+    pub fn hold_text_area_scroll_bar(
+        &mut self,
+        origin: (i32, i32),
+        x: i32,
+        y: i32,
+        xrel: i32,
+        yrel: i32,
+    ) -> bool {
+        self.text_area_container
+            .hold_scroll_bar(origin, x, y, xrel, yrel)
     }
 
     pub fn refresh(
@@ -153,7 +191,7 @@ impl<'a> Vue<'a> {
     ) {
         self.canvas.set_draw_color(BACKGROUND_COLOR);
         self.canvas.clear();
-        self.text_area
+        self.text_area_container
             .refresh(
                 content,
                 content_size,
@@ -197,6 +235,12 @@ pub fn char_size(font: &Font) -> (u32, u32) {
         "This function should only be used with mono fonts"
     );
     font.size_of_char('a').unwrap()
+}
+
+fn str_rect_at_line(font: &Font, text: &str, line: usize) -> Result<Rect, FontError> {
+    let (_, height) = font.size_of(text)?;
+    let rect = str_rect(font, text)?;
+    Ok(rect.bottom_shifted(height as i32 * line as i32))
 }
 
 pub fn str_rect(font: &Font, text: &str) -> Result<Rect, FontError> {

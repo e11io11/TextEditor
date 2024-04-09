@@ -1,18 +1,18 @@
 use sdl2::{rect::Rect, render::Canvas, ttf::Font, video::Window};
 
-use super::{char_size, str_rect, VueError, BAR_COLOR, OUTLINE_COLOR, TEXT_COLOR};
+use super::{
+    char_size, str_rect, RepositionFun, ResizeFun, VueComponent, VueError, BAR_COLOR,
+    OUTLINE_COLOR, TEXT_COLOR,
+};
 
 pub(crate) struct InfoBar {
     area: Rect,
-    pub resize_fun: fn((u32, u32)) -> (u32, u32),
-    pub reposition_fun: fn((u32, u32)) -> (i32, i32),
+    pub resize_fun: ResizeFun,
+    pub reposition_fun: RepositionFun,
 }
 
 impl InfoBar {
-    pub fn new(
-        resize_fun: fn((u32, u32)) -> (u32, u32),
-        reposition_fun: fn((u32, u32)) -> (i32, i32),
-    ) -> Self {
+    pub fn new(resize_fun: ResizeFun, reposition_fun: RepositionFun) -> Self {
         InfoBar {
             area: Rect::new(0, 0, 0, 0),
             resize_fun,
@@ -49,16 +49,6 @@ impl InfoBar {
         Ok(())
     }
 
-    pub fn set_position(&mut self, pos: (i32, i32)) {
-        let (x, y) = pos;
-        self.area = Rect::new(x, y, self.area.width(), self.area.height());
-    }
-
-    pub fn set_size(&mut self, size: (u32, u32)) {
-        let (w, h) = size;
-        self.area = Rect::new(self.area.x(), self.area.y(), w, h);
-    }
-
     pub fn refresh(
         &self,
         cursor: (usize, usize),
@@ -68,5 +58,25 @@ impl InfoBar {
         canvas.set_clip_rect(self.area);
         self.draw_bar(cursor, canvas, font)?;
         Ok(())
+    }
+}
+
+impl VueComponent for InfoBar {
+    fn set_position(&mut self, pos: (i32, i32)) {
+        let (x, y) = pos;
+        self.area = Rect::new(x, y, self.area.width(), self.area.height());
+    }
+
+    fn set_size(&mut self, size: (u32, u32)) {
+        let (w, h) = size;
+        self.area = Rect::new(self.area.x(), self.area.y(), w, h);
+    }
+
+    fn get_reposition_fun(&self) -> RepositionFun {
+        self.reposition_fun
+    }
+
+    fn get_resize_fun(&self) -> ResizeFun {
+        self.resize_fun
     }
 }
