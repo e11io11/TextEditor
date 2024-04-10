@@ -24,7 +24,7 @@ const OUTLINE_COLOR: Color = Color::RGB(43, 43, 43);
 const BACKGROUND_COLOR: Color = Color::RGB(31, 31, 31);
 const TEXT_COLOR: Color = Color::RGB(204, 204, 204);
 const GREY_TEXT_COLOR: Color = Color::RGB(110, 118, 129);
-
+const SCROLL_BAR_COLOR: Color = Color::RGBA(155, 155, 155, 100);
 const TEXT_FONT: &str = "__TEXT_FONT__";
 const UI_FONT: &str = "__UI_FONT__";
 

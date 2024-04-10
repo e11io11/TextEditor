@@ -5,6 +5,8 @@ use super::{
     ResizeFun, VueComponent, VueError,
 };
 
+pub(super) const TOP_MARGIN: u32 = 10;
+
 pub(crate) struct TextAreaContainer {
     area: Rect,
     pub resize_fun: ResizeFun,
@@ -20,7 +22,7 @@ impl TextAreaContainer {
         let text_area = TextArea::new(|(w, h)| (w - 40, h - 30), |_, (x, y)| (x + 40, y));
         let line_numbers = LineNumbers::new(|(_, h)| (40, h), |_, (x, y)| (x, y));
         let vertical_scroll_bar = ScrollBar::new(
-            |(_, h)| (20, h),
+            |(_, h)| (20, h - TOP_MARGIN),
             |(w, _), (x, y)| (x + (w as i32 - 20), y),
             true,
         );
@@ -125,12 +127,12 @@ impl TextAreaContainer {
             self.text_area.get_scroll_percent().1,
             self.text_area.get_shown_percent().1,
             canvas,
-        );
+        )?;
         self.horizontal_scroll_bar.refresh(
             self.text_area.get_scroll_percent().0,
             self.text_area.get_shown_percent().0,
             canvas,
-        );
+        )?;
         Ok(())
     }
 }

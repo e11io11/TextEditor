@@ -3,6 +3,7 @@ extern crate sdl2;
 use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::{Keycode, Mod};
 use sdl2::mouse::MouseButton;
+use sdl2::render::BlendMode::Blend;
 use sdl2::ttf::{self};
 use text_zone::TextContent;
 use timer::Timer;
@@ -60,7 +61,8 @@ pub fn main() {
         w
     };
 
-    let canvas = window.into_canvas().build().unwrap();
+    let mut canvas = window.into_canvas().build().unwrap();
+    canvas.set_blend_mode(Blend);
     let ttf_context = ttf::init().unwrap();
     let mut vue = Vue::new(canvas, &ttf_context);
     let mut text_content = TextContent::new();
@@ -100,6 +102,7 @@ pub fn main() {
                 Event::MouseMotion {
                     x, y, xrel, yrel, ..
                 } if left_click_origin.is_some() => {
+                    println!("xr: {}, yr: {}", xrel, yrel);
                     let origin = left_click_origin.unwrap();
                     vue.hold_text_area_scroll_bar(origin, x, y, xrel, yrel);
                 }

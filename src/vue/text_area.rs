@@ -11,11 +11,9 @@ use crate::{
 };
 
 use super::{
-    char_size, percent_position, str_rect_at_line, RepositionFun, ResizeFun, VueComponent,
-    VueError, TEXT_COLOR,
+    char_size, percent_position, str_rect_at_line, text_area_container::TOP_MARGIN, RepositionFun,
+    ResizeFun, VueComponent, VueError, TEXT_COLOR,
 };
-
-const Y_MARGIN: i32 = 10;
 
 pub(crate) struct TextArea {
     area: Rect,
@@ -51,7 +49,7 @@ impl TextArea {
         let (x, y) = {
             let (x, y) = (self.area.x(), self.area.y());
             let (x_scroll, y_scroll) = self.scroll_offset;
-            (x + x_scroll as i32, y + y_scroll as i32 + Y_MARGIN)
+            (x + x_scroll as i32, y + y_scroll as i32 + TOP_MARGIN as i32)
         };
         Rect::new(x, y, w, h)
     }
@@ -102,7 +100,7 @@ impl TextArea {
         let (w2, h2) = self.area.size();
         (
             w1 + percent_length(w2, 90),
-            h1 + Y_MARGIN as u32 + percent_length(h2, 80),
+            h1 + TOP_MARGIN + percent_length(h2, 80),
         )
     }
 

@@ -1,6 +1,6 @@
 use sdl2::{rect::Rect, render::Canvas, video::Window};
 
-use super::{RepositionFun, ResizeFun, VueComponent, TEXT_COLOR};
+use super::{RepositionFun, ResizeFun, VueComponent, SCROLL_BAR_COLOR, TEXT_COLOR};
 
 pub(crate) struct ScrollBar {
     area: Rect,
@@ -52,7 +52,7 @@ impl ScrollBar {
         Rect::new(x, y, w, h)
     }
 
-    pub fn debug_draw_rect(&self, canvas: &mut Canvas<Window>) {
+    pub fn _debug_draw_rect(&self, canvas: &mut Canvas<Window>) {
         canvas.set_draw_color(TEXT_COLOR);
         canvas.draw_rect(self.area).unwrap();
         let mut bar_area = self.get_bar_area();
@@ -61,16 +61,35 @@ impl ScrollBar {
         canvas.draw_rect(bar_area).unwrap();
     }
 
+    pub fn draw(&self, canvas: &mut Canvas<Window>) -> Result<(), String> {
+        let bar_area = self.get_bar_area();
+        let rect = {
+            let mut rect = bar_area.clone();
+            if self.vertical {
+                rect.resize(rect.width() / 2, rect.height() - 10);
+            } else {
+                rect.resize(rect.width() - 10, rect.height() / 2);
+            }
+            rect.centered_on(bar_area.center())
+        };
+        canvas.set_draw_color(SCROLL_BAR_COLOR);
+        canvas.fill_rect(rect)?;
+        Ok(())
+    }
+
     pub fn refresh(
         &mut self,
         scroll_percent: f32,
         shown_percent: f32,
         canvas: &mut Canvas<Window>,
-    ) {
+    ) -> Result<(), String> {
         self.scroll_percent = scroll_percent;
         self.shown_percent = shown_percent;
         canvas.set_clip_rect(self.area);
-        self.debug_draw_rect(canvas);
+        if shown_percent < 100.0 {
+            self.draw(canvas)?;
+        }
+        Ok(())
     }
 
     pub fn click_scroll(&self, x: i32, y: i32) -> Option<f32> {
@@ -116,6 +135,7 @@ impl ScrollBar {
         } else {
             let (bar_w, bar_h) = bar_area.size();
             let (area_w, area_h) = self.area.size();
+            let (area_x, area_y) = (self.area.x, self.area.y);
             let (dist_from_center_x, dist_from_center_y) = {
                 let center = bar_area.center();
                 (center.x - old_mouse_x, center.y - old_mouse_y)
@@ -123,10 +143,10 @@ impl ScrollBar {
             let (bar_x, bar_y) =
                 self.bar_centered_on(x + dist_from_center_x, y + dist_from_center_y);
             if self.vertical {
-                let percent = (bar_y as f32 / (area_h - bar_h) as f32) * 100.0;
+                let percent = ((bar_y - area_y) as f32 / (area_h - bar_h) as f32) * 100.0;
                 Some(percent)
             } else {
-                let percent = (bar_x as f32 / (area_w - bar_w) as f32) * 100.0;
+                let percent = ((bar_x - area_x) as f32 / (area_w - bar_w) as f32) * 100.0;
                 Some(percent)
             }
         }

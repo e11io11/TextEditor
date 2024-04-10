@@ -1,11 +1,9 @@
 use sdl2::{rect::Rect, render::Canvas, ttf::Font, video::Window};
 
 use super::{
-    str_rect_at_line, RepositionFun, ResizeFun, VueComponent, VueError, BACKGROUND_COLOR,
-    GREY_TEXT_COLOR,
+    str_rect_at_line, text_area_container::TOP_MARGIN, RepositionFun, ResizeFun, VueComponent,
+    VueError, BACKGROUND_COLOR, GREY_TEXT_COLOR,
 };
-
-const Y_MARGIN: i32 = 10;
 
 pub(crate) struct LineNumbers {
     area: Rect,
@@ -43,7 +41,7 @@ impl LineNumbers {
                 rect.center_on(container.center());
                 rect.offset(
                     self.area.right() - rect.w - 10,
-                    self.area.y() + Y_MARGIN + scroll_offset as i32,
+                    self.area.y() + TOP_MARGIN as i32 + scroll_offset as i32,
                 );
                 rect
             };
