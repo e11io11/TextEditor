@@ -102,7 +102,6 @@ pub fn main() {
                 Event::MouseMotion {
                     x, y, xrel, yrel, ..
                 } if left_click_origin.is_some() => {
-                    println!("xr: {}, yr: {}", xrel, yrel);
                     let origin = left_click_origin.unwrap();
                     vue.hold_text_area_scroll_bar(origin, x, y, xrel, yrel);
                 }
