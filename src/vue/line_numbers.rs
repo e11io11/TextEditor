@@ -2,7 +2,7 @@ use sdl2::{rect::Rect, render::Canvas, ttf::Font, video::Window};
 
 use super::{
     str_rect_at_line, text_area_container::TOP_MARGIN, RepositionFun, ResizeFun, VueComponent,
-    VueError, BACKGROUND_COLOR, GREY_TEXT_COLOR,
+    VueError, BACKGROUND_COLOR, GREY_TEXT_COLOR, TEXT_COLOR,
 };
 
 pub(crate) struct LineNumbers {
@@ -23,6 +23,7 @@ impl LineNumbers {
     fn draw(
         &mut self,
         line_n: usize,
+        current_line: usize,
         scroll_offset: f32,
         canvas: &mut Canvas<Window>,
         font: &Font,
@@ -33,7 +34,14 @@ impl LineNumbers {
         canvas.fill_rect(self.area)?;
         for n in 0..line_n {
             let text = (n + 1).to_string();
-            let surface = font.render(&text).blended(GREY_TEXT_COLOR)?;
+            let color = {
+                if n == current_line {
+                    TEXT_COLOR
+                } else {
+                    GREY_TEXT_COLOR
+                }
+            };
+            let surface = font.render(&text).blended(color)?;
             let texture = surface.as_texture(&creator)?;
             let rect = {
                 let mut rect = str_rect_at_line(font, &text, n)?;
@@ -53,13 +61,21 @@ impl LineNumbers {
     pub fn refresh(
         &mut self,
         line_n: usize,
+        current_line: usize,
         scroll_offset: f32,
         canvas: &mut Canvas<Window>,
         font: &Font,
         content_font: &Font,
     ) -> Result<(), VueError> {
         canvas.set_clip_rect(self.area);
-        self.draw(line_n, scroll_offset, canvas, font, content_font)?;
+        self.draw(
+            line_n,
+            current_line,
+            scroll_offset,
+            canvas,
+            font,
+            content_font,
+        )?;
         Ok(())
     }
 }

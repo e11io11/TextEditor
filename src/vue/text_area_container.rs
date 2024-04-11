@@ -118,6 +118,7 @@ impl TextAreaContainer {
             .refresh(content, content_size, cursor, canvas, content_font)?;
         self.line_numbers.refresh(
             content_size.0,
+            cursor.0,
             self.text_area.get_scroll_offset().1,
             canvas,
             line_number_font,
