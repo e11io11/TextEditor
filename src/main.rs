@@ -1,5 +1,6 @@
 extern crate sdl2;
 
+use files::{File, FileContext};
 use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::{Keycode, Mod};
 use sdl2::mouse::MouseButton;
@@ -9,6 +10,7 @@ use text_zone::TextContent;
 use timer::Timer;
 use vue::Vue;
 
+mod files;
 mod save_load;
 mod text_zone;
 mod timer;
@@ -37,10 +39,28 @@ fn text_editing(keycode: Keycode, keymod: Mod, text_content: &mut TextContent) -
     return true;
 }
 
-fn command(keycode: Keycode, keymod: Mod, text_content: &mut TextContent) -> bool {
+fn command(keycode: Keycode, keymod: Mod, files: &mut FileContext) -> bool {
     match keycode {
         Keycode::S if keymod.intersects(Mod::LCTRLMOD | Mod::RCTRLMOD) => {
-            save_load::save(&text_content.get_string()).unwrap()
+            let current_file = files.current();
+            let opt_path = current_file.path.clone();
+            if !keymod.intersects(Mod::LSHIFTMOD | Mod::RSHIFTMOD) && opt_path.is_some() {
+                save_load::save(&files.current().content.get_string(), &opt_path.unwrap()).unwrap();
+            } else if let Some(path) = save_load::select_save_file() {
+                save_load::save(&files.current().content.get_string(), &path).unwrap();
+                files.set_current_path(path);
+            }
+        }
+        Keycode::O if keymod.intersects(Mod::LCTRLMOD | Mod::RCTRLMOD) => {
+            if let Some(path) = save_load::select_open_file() {
+                let content = save_load::load(&path).unwrap();
+                let file = File {
+                    path: Some(path),
+                    content: TextContent::from_string(content),
+                };
+                files.add_file(file);
+                files.select_last();
+            }
         }
         _ => return false,
     }
@@ -65,10 +85,10 @@ pub fn main() {
     canvas.set_blend_mode(Blend);
     let ttf_context = ttf::init().unwrap();
     let mut vue = Vue::new(canvas, &ttf_context);
-    let mut text_content = TextContent::new();
     let mut event_pump = sdl_context.event_pump().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     video_subsystem.text_input().start();
+    let mut files = FileContext::new();
     let timer = Timer::new();
     let mut refresh_switch = true;
     let mut left_click_origin = None;
@@ -82,20 +102,20 @@ pub fn main() {
                     keymod,
                     ..
                 } => {
-                    if text_editing(keycode, keymod, &mut text_content) {
+                    if text_editing(keycode, keymod, &mut files.current().content) {
                         vue.send_cursor_update()
-                    } else if command(keycode, keymod, &mut text_content) {
+                    } else if command(keycode, keymod, &mut files) {
                     }
                 }
                 Event::TextInput { text, .. } => {
-                    text_content.append(text);
+                    files.current().content.append(text);
                     vue.send_cursor_update();
                 }
                 Event::MouseButtonDown { x, y, .. } => {
                     left_click_origin = Some((x, y));
                     if vue.click_text_area_scroll_bar(x, y) {
                     } else if let Some(position) = vue.cursor_index(x, y) {
-                        text_content.set_cursor(position);
+                        files.current().content.set_cursor(position);
                         vue.send_cursor_update();
                     }
                 }
@@ -128,9 +148,9 @@ pub fn main() {
         let refresh = refresh_switch != timer.switch_n_times_per_second(60);
         if refresh {
             vue.refresh(
-                text_content.get_text(),
-                text_content.size(),
-                text_content.get_cursor(),
+                files.current().content.get_text(),
+                files.current().content.size(),
+                files.current().content.get_cursor(),
             );
             refresh_switch = !refresh_switch;
         }

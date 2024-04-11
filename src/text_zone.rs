@@ -1,5 +1,6 @@
 use std::usize;
 
+#[derive(Clone)]
 pub(crate) struct TextContent {
     content: Vec<Vec<char>>,
     cursor: (usize, usize),
@@ -15,6 +16,14 @@ impl TextContent {
             },
             cursor: (0, 0),
         }
+    }
+
+    pub fn from_string(text: String) -> Self {
+        let mut res = Self::new();
+        for line in text.lines() {
+            res.content.push(line.chars().collect());
+        }
+        res
     }
 
     pub fn get_text(&self) -> Vec<String> {
